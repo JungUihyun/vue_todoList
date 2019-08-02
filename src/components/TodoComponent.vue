@@ -10,6 +10,7 @@
                 <div class="row">
                     <div class="col">
                         <div class="input-group mb-3">
+                            <input type="date" class="form-control" v-model="todoDate">
                             <input v-model="todoText" type="text" class="form-control" placeholder="할일 입력">
                             <div class="input-group-append">
                                 <button @click="add" class="btn btn-outline-secondary" type="button">
@@ -54,12 +55,15 @@
     export default {
         name: 'todo-compo',
         mounted(){
-            this.$http.get('http://localhost/read.php')
+            this.$http.get('/read.php')
             .then(result => {
-                this.list = result.data.map(x => {
+                let resList = result.data.map(x => {
                     x.date = new Date(x.date);
                     return x;
                 });
+
+                this.list = resList.filter(x => x.complete == 0);
+                this.cList = resList.filter(x => x.complete != 0);
             });
         },
         data () {
@@ -68,32 +72,50 @@
                 cList:[],
                 idx:5,
                 todoText:'',
+                todoDate:'',
             };
         },
         methods:{
             del(idx){
                 let id = this.list.findIndex( x => x.id == idx);
-                this.list.splice(id, 1);
+                let item = this.list.splice(id, 1)[0];
+
+                let form = new FormData();
+                form.append("id", item.id);
+                this.$http.post('/delete.php', form)
+                .then( res => {
+                    console.log(res.data);
+                });
             },
             add(){
-                if(this.todoText.trim() == ""){
+                if(this.todoText.trim() == "" || this.todoDate == ""){
                     alert("공백은 입력할 수 없습니다.");
                     return;
                 }
-                this.list.push({id: this.idx++, name:this.todoText, date: new Date()});
                 
                 let form = new FormData();
                 form.append("todo", this.todoText);
-                this.$http.post('http://localhost/post.php', form)
+                form.append("date", this.todoDate);
+                this.$http.post('/post.php', form)
                 .then( res => {
-                    console.log(res.data);
+                    console.log();
+                    this.list.push({id: res.data.id, name:this.todoText, date: new Date(this.todoDate)});
                 });
             },
             complete(idx){
                 let id = this.list.findIndex(x => x.id == idx);
                 let item = this.list.splice(id, 1)[0];
-                item.date = new Date();
+                // item.date = new Date();
+
                 this.cList.push(item);
+
+                let form = new FormData();
+                form.append("id", item.id);
+                // form.append("date", item.date);
+                this.$http.post('/complete.php', form)
+                .then( res => {
+                    console.log(res.data);
+                });
             }
         }
     }
